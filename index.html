@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador de Microcópias para UX</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+    const API = "/.netlify/functions/claude";
+    const tabs = ["Sobre", "Diretrizes", "Revisão", "Criação"];
+
+    const sobre = (
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800">O que são microcópias?</h2>
+        <p className="text-gray-600 leading-relaxed">
+          Microcópias são os pequenos textos que guiam o usuário em uma interface: botões, mensagens de erro, placeholders, tooltips, labels e confirmações. Embora curtas, têm grande impacto na experiência do usuário.
+        </p>
+        <div className="grid grid-cols-1 gap-3 mt-4">
+          {[
+            { icon: "💬", title: "Botões e CTAs", desc: "Textos de ação claros e orientados ao benefício." },
+            { icon: "⚠️", title: "Mensagens de erro", desc: "Comunicação empática e orientada à solução." },
+            { icon: "📋", title: "Placeholders", desc: "Exemplos úteis que reduzem fricção no preenchimento." },
+            { icon: "✅", title: "Confirmações", desc: "Feedback positivo que transmite confiança." },
+          ].map((item) => (
+            <div key={item.title} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <span className="text-xl">{item.icon}</span>
+              <div>
+                <p className="font-medium text-gray-700 text-sm">{item.title}</p>
+                <p className="text-gray-500 text-sm">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    const diretrizes = (
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800">Boas práticas de microcópia</h2>
+        {[
+          { num: "01", title: "Seja claro, não inteligente", desc: "Clareza sempre supera criatividade. O usuário precisa entender a ação imediatamente." },
+          { num: "02", title: "Use voz ativa", desc: 'Prefira "Salvar alterações" a "As alterações serão salvas".' },
+          { num: "03", title: "Foque no benefício", desc: 'Em vez de "Enviar", use "Receber meu relatório".' },
+          { num: "04", title: "Evite jargões técnicos", desc: "Escreva para o usuário, não para o desenvolvedor." },
+          { num: "05", title: "Seja empático nos erros", desc: 'Substitua "Erro 404" por "Não encontramos essa página. Tente voltar ao início."' },
+          { num: "06", title: "Mantenha consistência", desc: "Use sempre os mesmos termos para as mesmas ações em toda a interface." },
+        ].map((d) => (
+          <div key={d.num} className="flex gap-4 p-3 border-b border-gray-100 last:border-0">
+            <span className="text-blue-400 font-bold text-sm min-w-[24px]">{d.num}</span>
+            <div>
+              <p className="font-medium text-gray-700 text-sm">{d.title}</p>
+              <p className="text-gray-500 text-sm mt-0.5">{d.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+    function RevisaoTab() {
+      const [text, setText] = useState("");
+      const [result, setResult] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      const revisar = async () => {
+        if (!text.trim()) return;
+        setLoading(true);
+        setResult(null);
+        try {
+          const res = await fetch(API, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 1000,
+              system: `Você é especialista em UX writing e microcópia. Analise os textos de interface fornecidos e retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato exato:
+{"pontos": [{"original": "texto original", "problema": "descrição curta do problema", "sugestao": "texto melhorado"}], "score": número de 0 a 10, "resumo": "frase curta de avaliação geral"}`,
+              messages: [{ role: "user", content: `Revise estas microcópias de interface:\n\n${text}` }],
+            }),
+          });
+          const data = await res.json();
+          const raw = data.content?.find(b => b.type === "text")?.text || "{}";
+          const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+          setResult(parsed);
+        } catch (e) {
+          setResult({ erro: "Não foi possível processar. Tente novamente." });
+        }
+        setLoading(false);
+      };
+
+      return (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-800">Revisar textos de interface</h2>
+          <p className="text-sm text-gray-500">Cole os textos da sua interface abaixo e receba uma análise com sugestões de melhoria.</p>
+          <textarea
+            className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50"
+            rows={6}
+            placeholder={"Ex:\nBotão: Enviar\nErro: Senha inválida\nPlaceholder: Digite aqui\nConfirmação: Feito!"}
+            value={text}
+            onChange={e => setText(e.target.value)}
+          />
+          <button onClick={revisar} disabled={loading || !text.trim()}
+            className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors">
+            {loading ? "Analisando..." : "Revisar microcópias"}
+          </button>
+          {result && !result.erro && (
+            <div className="space-y-3 mt-2">
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <p className="text-sm text-blue-700 font-medium">{result.resumo}</p>
+                <span className="text-lg font-bold text-blue-500">{result.score}/10</span>
+              </div>
+              {result.pontos?.map((p, i) => (
+                <div key={i} className="border border-gray-100 rounded-lg overflow-hidden">
+                  <div className="flex gap-2 px-3 py-2 bg-gray-50">
+                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Original</span>
+                    <span className="text-sm text-gray-600">{p.original}</span>
+                  </div>
+                  <div className="px-3 py-2 border-t border-gray-100">
+                    <p className="text-xs text-amber-500 font-medium mb-1">⚠ {p.problema}</p>
+                    <p className="text-sm text-green-700 font-medium">✓ {p.sugestao}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {result?.erro && <p className="text-sm text-red-500">{result.erro}</p>}
+        </div>
+      );
+    }
+
+    function CriacaoTab() {
+      const [context, setContext] = useState("");
+      const [tipo, setTipo] = useState("botão");
+      const [result, setResult] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [copiado, setCopiado] = useState(null);
+
+      const tipos = ["botão", "mensagem de erro", "placeholder", "tooltip", "confirmação", "onboarding"];
+
+      const gerar = async () => {
+        if (!context.trim()) return;
+        setLoading(true);
+        setResult(null);
+        try {
+          const res = await fetch(API, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 1000,
+              system: `Você é especialista em UX writing. Gere microcópias em português para interfaces digitais. Retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato:
+{"opcoes": ["opção 1", "opção 2", "opção 3", "opção 4"], "dica": "dica rápida sobre este tipo de microcópia"}`,
+              messages: [{ role: "user", content: `Gere 4 opções de ${tipo} para este contexto: ${context}` }],
+            }),
+          });
+          const data = await res.json();
+          const raw = data.content?.find(b => b.type === "text")?.text || "{}";
+          const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+          setResult(parsed);
+        } catch (e) {
+          setResult({ erro: "Não foi possível gerar. Tente novamente." });
+        }
+        setLoading(false);
+      };
+
+      const copiar = (txt, i) => {
+        navigator.clipboard.writeText(txt);
+        setCopiado(i);
+        setTimeout(() => setCopiado(null), 1500);
+      };
+
+      return (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-800">Criar novas microcópias</h2>
+          <p className="text-sm text-gray-500">Descreva o contexto da interface e escolha o tipo de texto que deseja gerar.</p>
+          <div>
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Tipo de microcópia</label>
+            <div className="flex flex-wrap gap-2">
+              {tipos.map(t => (
+                <button key={t} onClick={() => setTipo(t)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${tipo === t ? "bg-blue-500 text-white border-blue-500" : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Contexto da interface</label>
+            <textarea
+              className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50"
+              rows={4}
+              placeholder="Ex: Botão de envio de formulário de cadastro em app de finanças pessoais para jovens adultos."
+              value={context}
+              onChange={e => setContext(e.target.value)}
+            />
+          </div>
+          <button onClick={gerar} disabled={loading || !context.trim()}
+            className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors">
+            {loading ? "Gerando..." : "Gerar microcópias"}
+          </button>
+          {result && !result.erro && (
+            <div className="space-y-3">
+              {result.dica && (
+                <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-sm text-amber-700">💡 {result.dica}</div>
+              )}
+              <div className="space-y-2">
+                {result.opcoes?.map((op, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                    <span className="text-sm text-gray-700">{op}</span>
+                    <button onClick={() => copiar(op, i)} className="ml-3 text-xs text-blue-400 hover:text-blue-600 font-medium shrink-0">
+                      {copiado === i ? "✓ Copiado" : "Copiar"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {result?.erro && <p className="text-sm text-red-500">{result.erro}</p>}
+        </div>
+      );
+    }
+
+    function App() {
+      const [activeTab, setActiveTab] = useState("Sobre");
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4">
+          <div className="w-full max-w-xl">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-800 tracking-tight">✍️ Gerador de Microcópias</h1>
+              <p className="text-sm text-gray-500 mt-1">Crie e revise textos de interface com qualidade profissional.</p>
+            </div>
+            <div className="flex border-b border-gray-200 mb-6">
+              {tabs.map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+              {activeTab === "Sobre" && sobre}
+              {activeTab === "Diretrizes" && diretrizes}
+              {activeTab === "Revisão" && <RevisaoTab />}
+              {activeTab === "Criação" && <CriacaoTab />}
+            </div>
+            <p className="text-center text-xs text-gray-400 mt-4">Powered by Claude · UX Writing em português</p>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
