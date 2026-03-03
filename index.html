@@ -13,8 +13,8 @@
   <div id="root"></div>
   <script type="text/babel">
     const { useState } = React;
-    const API = "/.netlify/functions/claude";
-    const tabs = ["Sobre", "Diretrizes", "Revisão", "Criação"];
+    const API = "/.netlify/functions/gemini";
+    const tabs = ["Sobre", "Diretrizes da Marca", "Revisão", "Criação"];
 
     const sobre = (
       <div className="space-y-4">
@@ -28,74 +28,104 @@
             { icon: "⚠️", title: "Mensagens de erro", desc: "Comunicação empática e orientada à solução." },
             { icon: "📋", title: "Placeholders", desc: "Exemplos úteis que reduzem fricção no preenchimento." },
             { icon: "✅", title: "Confirmações", desc: "Feedback positivo que transmite confiança." },
-          ].map((item) => (
-            <div key={item.title} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-              <span className="text-xl">{item.icon}</span>
-              <div>
-                <p className="font-medium text-gray-700 text-sm">{item.title}</p>
-                <p className="text-gray-500 text-sm">{item.desc}</p>
+          ].map(function(item) {
+            return (
+              <div key={item.title} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="text-xl">{item.icon}</span>
+                <div>
+                  <p className="font-medium text-gray-700 text-sm">{item.title}</p>
+                  <p className="text-gray-500 text-sm">{item.desc}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
 
-    const diretrizes = (
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800">Boas práticas de microcópia</h2>
-        {[
-          { num: "01", title: "Seja claro, não inteligente", desc: "Clareza sempre supera criatividade. O usuário precisa entender a ação imediatamente." },
-          { num: "02", title: "Use voz ativa", desc: 'Prefira "Salvar alterações" a "As alterações serão salvas".' },
-          { num: "03", title: "Foque no benefício", desc: 'Em vez de "Enviar", use "Receber meu relatório".' },
-          { num: "04", title: "Evite jargões técnicos", desc: "Escreva para o usuário, não para o desenvolvedor." },
-          { num: "05", title: "Seja empático nos erros", desc: 'Substitua "Erro 404" por "Não encontramos essa página. Tente voltar ao início."' },
-          { num: "06", title: "Mantenha consistência", desc: "Use sempre os mesmos termos para as mesmas ações em toda a interface." },
-        ].map((d) => (
-          <div key={d.num} className="flex gap-4 p-3 border-b border-gray-100 last:border-0">
-            <span className="text-blue-400 font-bold text-sm min-w-[24px]">{d.num}</span>
-            <div>
-              <p className="font-medium text-gray-700 text-sm">{d.title}</p>
-              <p className="text-gray-500 text-sm mt-0.5">{d.desc}</p>
-            </div>
+    function DiretrizesTab({ diretrizes, setDiretrizes }) {
+      const [salvo, setSalvo] = useState(false);
+      const salvar = function() {
+        setSalvo(true);
+        setTimeout(function() { setSalvo(false); }, 2000);
+      };
+      return (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-800">Diretrizes da Marca</h2>
+          <p className="text-sm text-gray-500">Cole aqui as diretrizes de tom de voz, vocabulário e estilo da sua marca. Elas serão aplicadas automaticamente nas abas Revisão e Criação.</p>
+          <div className="space-y-3">
+            {[
+              { label: "🎙 Tom de voz", key: "tom", placeholder: "Ex: Tom informal, próximo e empático. Evite formalidades excessivas..." },
+              { label: "🚫 Vocabulário proibido", key: "vocabulario", placeholder: "Ex: Não usar: 'clique aqui', 'usuário', 'sistema', palavras em inglês..." },
+              { label: "✍️ Estilo de escrita", key: "estilo", placeholder: "Ex: Frases curtas, voz ativa, máximo 5 palavras por botão..." },
+              { label: "🏷 Identidade da marca", key: "identidade", placeholder: "Ex: Marca jovem e inovadora, voltada para universitários brasileiros..." },
+            ].map(function(campo) {
+              return (
+                <div key={campo.key}>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">{campo.label}</label>
+                  <textarea
+                    className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50"
+                    rows={3}
+                    placeholder={campo.placeholder}
+                    value={diretrizes[campo.key] || ""}
+                    onChange={function(e) {
+                      setDiretrizes(function(prev) {
+                        var next = Object.assign({}, prev);
+                        next[campo.key] = e.target.value;
+                        return next;
+                      });
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
-    );
+          <button onClick={salvar}
+            className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+            {salvo ? "✓ Diretrizes salvas!" : "Salvar diretrizes"}
+          </button>
+          {Object.values(diretrizes).some(function(v) { return v && v.trim(); }) && (
+            <div className="p-3 bg-green-50 border border-green-100 rounded-lg text-sm text-green-700">
+              ✓ Suas diretrizes estão ativas e serão aplicadas nas próximas gerações.
+            </div>
+          )}
+        </div>
+      );
+    }
 
-    function RevisaoTab() {
+    function buildSystemPrompt(diretrizes) {
+      var base = "Você é especialista em UX writing e microcópia para interfaces digitais em português brasileiro.";
+      var partes = [];
+      if (diretrizes.tom && diretrizes.tom.trim()) partes.push("TOM DE VOZ: " + diretrizes.tom);
+      if (diretrizes.vocabulario && diretrizes.vocabulario.trim()) partes.push("VOCABULÁRIO PROIBIDO: " + diretrizes.vocabulario);
+      if (diretrizes.estilo && diretrizes.estilo.trim()) partes.push("ESTILO DE ESCRITA: " + diretrizes.estilo);
+      if (diretrizes.identidade && diretrizes.identidade.trim()) partes.push("IDENTIDADE DA MARCA: " + diretrizes.identidade);
+      if (partes.length > 0) base += "\n\nDIRETRIZES DA MARCA QUE DEVEM SER SEGUIDAS:\n" + partes.join("\n\n");
+      return base;
+    }
+
+    function RevisaoTab({ diretrizes }) {
       const [text, setText] = useState("");
       const [result, setResult] = useState(null);
       const [loading, setLoading] = useState(false);
-      const [debug, setDebug] = useState("");
 
-      const revisar = async () => {
+      const revisar = async function() {
         if (!text.trim()) return;
         setLoading(true);
         setResult(null);
-        setDebug("");
         try {
+          const system = buildSystemPrompt(diretrizes) + "\n\nAnalise os textos de interface fornecidos e retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato exato:\n{\"pontos\": [{\"original\": \"texto original\", \"problema\": \"descrição curta do problema\", \"sugestao\": \"texto melhorado\"}], \"score\": número de 0 a 10, \"resumo\": \"frase curta de avaliação geral\"}";
           const res = await fetch(API, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 1000,
-              system: `Você é especialista em UX writing e microcópia. Analise os textos de interface fornecidos e retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato exato:
-{"pontos": [{"original": "texto original", "problema": "descrição curta do problema", "sugestao": "texto melhorado"}], "score": número de 0 a 10, "resumo": "frase curta de avaliação geral"}`,
-              messages: [{ role: "user", content: "Revise estas microcópias de interface:\n\n" + text }],
-            }),
+            body: JSON.stringify({ system: system, message: "Revise estas microcópias de interface:\n\n" + text }),
           });
           const data = await res.json();
-          const raw = data.content && data.content.find(function(b) { return b.type === "text"; });
-          const rawText = raw ? raw.text : "{}";
-          setDebug(rawText);
-          const clean = rawText.replace(/```json|```/g, "").trim();
-          const parsed = JSON.parse(clean);
+          const raw = (data.text || "{}").replace(/```json|```/g, "").trim();
+          const parsed = JSON.parse(raw);
           setResult(parsed);
-        } catch (e) {
-          setDebug("ERRO: " + e.message);
-          setResult({ erro: "Não foi possível processar." });
+        } catch(e) {
+          setResult({ erro: "Não foi possível processar. Tente novamente." });
         }
         setLoading(false);
       };
@@ -104,10 +134,13 @@
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800">Revisar textos de interface</h2>
           <p className="text-sm text-gray-500">Cole os textos da sua interface abaixo e receba uma análise com sugestões de melhoria.</p>
+          {Object.values(diretrizes).some(function(v) { return v && v.trim(); }) && (
+            <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-600">✓ Diretrizes da marca ativas</div>
+          )}
           <textarea
             className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50"
             rows={6}
-            placeholder={"Ex:\nBotão: Enviar\nErro: Senha inválida\nPlaceholder: Digite aqui\nConfirmação: Feito!"}
+            placeholder={"Ex:\nBotão: Enviar\nErro: Senha inválida\nPlaceholder: Digite aqui"}
             value={text}
             onChange={function(e) { setText(e.target.value); }}
           />
@@ -115,12 +148,7 @@
             className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors">
             {loading ? "Analisando..." : "Revisar microcópias"}
           </button>
-          {debug ? (
-            <div className="p-3 bg-gray-900 rounded-lg text-xs text-green-400 overflow-auto max-h-40">
-              <strong>Debug:</strong> {debug}
-            </div>
-          ) : null}
-          {result && !result.erro ? (
+          {result && !result.erro && (
             <div className="space-y-3 mt-2">
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
                 <p className="text-sm text-blue-700 font-medium">{result.resumo}</p>
@@ -141,49 +169,37 @@
                 );
               })}
             </div>
-          ) : null}
-          {result && result.erro ? <p className="text-sm text-red-500">{result.erro}</p> : null}
+          )}
+          {result && result.erro && <p className="text-sm text-red-500">{result.erro}</p>}
         </div>
       );
     }
 
-    function CriacaoTab() {
+    function CriacaoTab({ diretrizes }) {
       const [context, setContext] = useState("");
       const [tipo, setTipo] = useState("botão");
       const [result, setResult] = useState(null);
       const [loading, setLoading] = useState(false);
       const [copiado, setCopiado] = useState(null);
-      const [debug, setDebug] = useState("");
-
       const tipos = ["botão", "mensagem de erro", "placeholder", "tooltip", "confirmação", "onboarding"];
 
-      const gerar = async () => {
+      const gerar = async function() {
         if (!context.trim()) return;
         setLoading(true);
         setResult(null);
-        setDebug("");
         try {
+          const system = buildSystemPrompt(diretrizes) + "\n\nGere microcópias em português para interfaces digitais. Retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato:\n{\"opcoes\": [\"opção 1\", \"opção 2\", \"opção 3\", \"opção 4\"], \"dica\": \"dica rápida sobre este tipo de microcópia\"}";
           const res = await fetch(API, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 1000,
-              system: `Você é especialista em UX writing. Gere microcópias em português para interfaces digitais. Retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato:
-{"opcoes": ["opção 1", "opção 2", "opção 3", "opção 4"], "dica": "dica rápida sobre este tipo de microcópia"}`,
-              messages: [{ role: "user", content: "Gere 4 opções de " + tipo + " para este contexto: " + context }],
-            }),
+            body: JSON.stringify({ system: system, message: "Gere 4 opções de " + tipo + " para este contexto: " + context }),
           });
           const data = await res.json();
-          const raw = data.content && data.content.find(function(b) { return b.type === "text"; });
-          const rawText = raw ? raw.text : "{}";
-          setDebug(rawText);
-          const clean = rawText.replace(/```json|```/g, "").trim();
-          const parsed = JSON.parse(clean);
+          const raw = (data.text || "{}").replace(/```json|```/g, "").trim();
+          const parsed = JSON.parse(raw);
           setResult(parsed);
-        } catch (e) {
-          setDebug("ERRO: " + e.message);
-          setResult({ erro: "Não foi possível gerar." });
+        } catch(e) {
+          setResult({ erro: "Não foi possível gerar. Tente novamente." });
         }
         setLoading(false);
       };
@@ -198,6 +214,9 @@
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800">Criar novas microcópias</h2>
           <p className="text-sm text-gray-500">Descreva o contexto da interface e escolha o tipo de texto que deseja gerar.</p>
+          {Object.values(diretrizes).some(function(v) { return v && v.trim(); }) && (
+            <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-600">✓ Diretrizes da marca ativas</div>
+          )}
           <div>
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Tipo de microcópia</label>
             <div className="flex flex-wrap gap-2">
@@ -225,16 +244,11 @@
             className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors">
             {loading ? "Gerando..." : "Gerar microcópias"}
           </button>
-          {debug ? (
-            <div className="p-3 bg-gray-900 rounded-lg text-xs text-green-400 overflow-auto max-h-40">
-              <strong>Debug:</strong> {debug}
-            </div>
-          ) : null}
-          {result && !result.erro ? (
+          {result && !result.erro && (
             <div className="space-y-3">
-              {result.dica ? (
+              {result.dica && (
                 <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-sm text-amber-700">💡 {result.dica}</div>
-              ) : null}
+              )}
               <div className="space-y-2">
                 {result.opcoes && result.opcoes.map(function(op, i) {
                   return (
@@ -248,14 +262,15 @@
                 })}
               </div>
             </div>
-          ) : null}
-          {result && result.erro ? <p className="text-sm text-red-500">{result.erro}</p> : null}
+          )}
+          {result && result.erro && <p className="text-sm text-red-500">{result.erro}</p>}
         </div>
       );
     }
 
     function App() {
       const [activeTab, setActiveTab] = useState("Sobre");
+      const [diretrizes, setDiretrizes] = useState({ tom: "", vocabulario: "", estilo: "", identidade: "" });
       return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4">
           <div className="w-full max-w-xl">
@@ -263,11 +278,11 @@
               <h1 className="text-2xl font-bold text-gray-800 tracking-tight">✍️ Gerador de Microcópias</h1>
               <p className="text-sm text-gray-500 mt-1">Crie e revise textos de interface com qualidade profissional.</p>
             </div>
-            <div className="flex border-b border-gray-200 mb-6">
+            <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
               {tabs.map(function(tab) {
                 return (
                   <button key={tab} onClick={function() { setActiveTab(tab); }}
-                    className={"px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px " + (activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700")}>
+                    className={"px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap " + (activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700")}>
                     {tab}
                   </button>
                 );
@@ -275,11 +290,11 @@
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
               {activeTab === "Sobre" ? sobre : null}
-              {activeTab === "Diretrizes" ? diretrizes : null}
-              {activeTab === "Revisão" ? <RevisaoTab /> : null}
-              {activeTab === "Criação" ? <CriacaoTab /> : null}
+              {activeTab === "Diretrizes da Marca" ? <DiretrizesTab diretrizes={diretrizes} setDiretrizes={setDiretrizes} /> : null}
+              {activeTab === "Revisão" ? <RevisaoTab diretrizes={diretrizes} /> : null}
+              {activeTab === "Criação" ? <CriacaoTab diretrizes={diretrizes} /> : null}
             </div>
-            <p className="text-center text-xs text-gray-400 mt-4">Powered by Claude · UX Writing em português</p>
+            <p className="text-center text-xs text-gray-400 mt-4">Powered by Gemini · UX Writing em português</p>
           </div>
         </div>
       );
