@@ -122,10 +122,12 @@
           });
           const data = await res.json();
           const raw = (data.text || "{}").replace(/```json|```/g, "").trim();
+          console.log("GEMINI REVISAO:", raw);
           const parsed = JSON.parse(raw);
           setResult(parsed);
         } catch(e) {
-          setResult({ erro: "Não foi possível processar. Tente novamente." });
+          console.log("ERRO REVISAO:", e.message);
+          setResult({ erro: "Erro: " + e.message });
         }
         setLoading(false);
       };
