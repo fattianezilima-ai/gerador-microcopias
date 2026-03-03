@@ -86,10 +86,12 @@
           });
           const data = await res.json();
           const raw = data.content?.find(b => b.type === "text")?.text || "{}";
-          const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+          const clean = raw.replace(/```json|```/g, "").trim();
+          const parsed = JSON.parse(clean);
+          if (!parsed.pontos) parsed.pontos = [];
           setResult(parsed);
         } catch (e) {
-          setResult({ erro: "Não foi possível processar. Tente novamente." });
+          setResult({ erro: "Não foi possível processar. Tente novamente. Erro: " + e.message });
         }
         setLoading(false);
       };
@@ -160,11 +162,13 @@
             }),
           });
           const data = await res.json();
-          const raw = data.content?.find(b => b.type === "text")?.text || "{}";
-          const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-          setResult(parsed);
+          const raw2 = data.content?.find(b => b.type === "text")?.text || "{}";
+          const clean2 = raw2.replace(/```json|```/g, "").trim();
+          const parsed2 = JSON.parse(clean2);
+          if (!parsed2.opcoes) parsed2.opcoes = [];
+          setResult(parsed2);
         } catch (e) {
-          setResult({ erro: "Não foi possível gerar. Tente novamente." });
+          setResult({ erro: "Não foi possível gerar. Tente novamente. Erro: " + e.message });
         }
         setLoading(false);
       };
