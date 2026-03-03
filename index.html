@@ -68,33 +68,24 @@
       const [result, setResult] = useState(null);
       const [loading, setLoading] = useState(false);
 
-      const revisar = async () => {
-        if (!text.trim()) return;
-        setLoading(true);
-        setResult(null);
-        try {
-          const res = await fetch(API, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 1000,
-              system: `Você é especialista em UX writing e microcópia. Analise os textos de interface fornecidos e retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato exato:
+     const res = await fetch(API, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1000,
+    system: `Você é especialista em UX writing e microcópia. Analise os textos de interface fornecidos e retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato exato:
 {"pontos": [{"original": "texto original", "problema": "descrição curta do problema", "sugestao": "texto melhorado"}], "score": número de 0 a 10, "resumo": "frase curta de avaliação geral"}`,
-              messages: [{ role: "user", content: `Revise estas microcópias de interface:\n\n${text}` }],
-            }),
-          });
-          const data = await res.json();
-          const raw = data.content?.find(b => b.type === "text")?.text || "{}";
-          const clean = raw.replace(/```json|```/g, "").trim();
-          const parsed = JSON.parse(clean);
-          if (!parsed.pontos) parsed.pontos = [];
-          setResult(parsed);
-        } catch (e) {
-          setResult({ erro: "Não foi possível processar. Tente novamente. Erro: " + e.message });
-        }
-        setLoading(false);
-      };
+    messages: [{ role: "user", content: `Revise estas microcópias de interface:\n\n${text}` }],
+  }),
+});
+const data = await res.json();
+console.log("RESPOSTA COMPLETA:", JSON.stringify(data));
+const raw = data.content?.find(b => b.type === "text")?.text || "{}";
+console.log("RAW:", raw);
+const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+console.log("PARSED:", JSON.stringify(parsed));
+setResult(parsed);
 
       return (
         <div className="space-y-4">
