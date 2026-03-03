@@ -67,25 +67,38 @@
       const [text, setText] = useState("");
       const [result, setResult] = useState(null);
       const [loading, setLoading] = useState(false);
+      const [debug, setDebug] = useState("");
 
-     const res = await fetch(API, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1000,
-    system: `Você é especialista em UX writing e microcópia. Analise os textos de interface fornecidos e retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato exato:
+      const revisar = async () => {
+        if (!text.trim()) return;
+        setLoading(true);
+        setResult(null);
+        setDebug("");
+        try {
+          const res = await fetch(API, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 1000,
+              system: `Você é especialista em UX writing e microcópia. Analise os textos de interface fornecidos e retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato exato:
 {"pontos": [{"original": "texto original", "problema": "descrição curta do problema", "sugestao": "texto melhorado"}], "score": número de 0 a 10, "resumo": "frase curta de avaliação geral"}`,
-    messages: [{ role: "user", content: `Revise estas microcópias de interface:\n\n${text}` }],
-  }),
-});
-const data = await res.json();
-console.log("RESPOSTA COMPLETA:", JSON.stringify(data));
-const raw = data.content?.find(b => b.type === "text")?.text || "{}";
-console.log("RAW:", raw);
-const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-console.log("PARSED:", JSON.stringify(parsed));
-setResult(parsed);
+              messages: [{ role: "user", content: "Revise estas microcópias de interface:\n\n" + text }],
+            }),
+          });
+          const data = await res.json();
+          const raw = data.content && data.content.find(function(b) { return b.type === "text"; });
+          const rawText = raw ? raw.text : "{}";
+          setDebug(rawText);
+          const clean = rawText.replace(/```json|```/g, "").trim();
+          const parsed = JSON.parse(clean);
+          setResult(parsed);
+        } catch (e) {
+          setDebug("ERRO: " + e.message);
+          setResult({ erro: "Não foi possível processar." });
+        }
+        setLoading(false);
+      };
 
       return (
         <div className="space-y-4">
@@ -96,33 +109,40 @@ setResult(parsed);
             rows={6}
             placeholder={"Ex:\nBotão: Enviar\nErro: Senha inválida\nPlaceholder: Digite aqui\nConfirmação: Feito!"}
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={function(e) { setText(e.target.value); }}
           />
           <button onClick={revisar} disabled={loading || !text.trim()}
             className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors">
             {loading ? "Analisando..." : "Revisar microcópias"}
           </button>
-          {result && !result.erro && (
+          {debug ? (
+            <div className="p-3 bg-gray-900 rounded-lg text-xs text-green-400 overflow-auto max-h-40">
+              <strong>Debug:</strong> {debug}
+            </div>
+          ) : null}
+          {result && !result.erro ? (
             <div className="space-y-3 mt-2">
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
                 <p className="text-sm text-blue-700 font-medium">{result.resumo}</p>
                 <span className="text-lg font-bold text-blue-500">{result.score}/10</span>
               </div>
-              {result.pontos?.map((p, i) => (
-                <div key={i} className="border border-gray-100 rounded-lg overflow-hidden">
-                  <div className="flex gap-2 px-3 py-2 bg-gray-50">
-                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Original</span>
-                    <span className="text-sm text-gray-600">{p.original}</span>
+              {result.pontos && result.pontos.map(function(p, i) {
+                return (
+                  <div key={i} className="border border-gray-100 rounded-lg overflow-hidden">
+                    <div className="flex gap-2 px-3 py-2 bg-gray-50">
+                      <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Original</span>
+                      <span className="text-sm text-gray-600">{p.original}</span>
+                    </div>
+                    <div className="px-3 py-2 border-t border-gray-100">
+                      <p className="text-xs text-amber-500 font-medium mb-1">⚠ {p.problema}</p>
+                      <p className="text-sm text-green-700 font-medium">✓ {p.sugestao}</p>
+                    </div>
                   </div>
-                  <div className="px-3 py-2 border-t border-gray-100">
-                    <p className="text-xs text-amber-500 font-medium mb-1">⚠ {p.problema}</p>
-                    <p className="text-sm text-green-700 font-medium">✓ {p.sugestao}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          )}
-          {result?.erro && <p className="text-sm text-red-500">{result.erro}</p>}
+          ) : null}
+          {result && result.erro ? <p className="text-sm text-red-500">{result.erro}</p> : null}
         </div>
       );
     }
@@ -133,6 +153,7 @@ setResult(parsed);
       const [result, setResult] = useState(null);
       const [loading, setLoading] = useState(false);
       const [copiado, setCopiado] = useState(null);
+      const [debug, setDebug] = useState("");
 
       const tipos = ["botão", "mensagem de erro", "placeholder", "tooltip", "confirmação", "onboarding"];
 
@@ -140,6 +161,7 @@ setResult(parsed);
         if (!context.trim()) return;
         setLoading(true);
         setResult(null);
+        setDebug("");
         try {
           const res = await fetch(API, {
             method: "POST",
@@ -149,25 +171,27 @@ setResult(parsed);
               max_tokens: 1000,
               system: `Você é especialista em UX writing. Gere microcópias em português para interfaces digitais. Retorne APENAS um JSON válido (sem markdown, sem backticks) com este formato:
 {"opcoes": ["opção 1", "opção 2", "opção 3", "opção 4"], "dica": "dica rápida sobre este tipo de microcópia"}`,
-              messages: [{ role: "user", content: `Gere 4 opções de ${tipo} para este contexto: ${context}` }],
+              messages: [{ role: "user", content: "Gere 4 opções de " + tipo + " para este contexto: " + context }],
             }),
           });
           const data = await res.json();
-          const raw2 = data.content?.find(b => b.type === "text")?.text || "{}";
-          const clean2 = raw2.replace(/```json|```/g, "").trim();
-          const parsed2 = JSON.parse(clean2);
-          if (!parsed2.opcoes) parsed2.opcoes = [];
-          setResult(parsed2);
+          const raw = data.content && data.content.find(function(b) { return b.type === "text"; });
+          const rawText = raw ? raw.text : "{}";
+          setDebug(rawText);
+          const clean = rawText.replace(/```json|```/g, "").trim();
+          const parsed = JSON.parse(clean);
+          setResult(parsed);
         } catch (e) {
-          setResult({ erro: "Não foi possível gerar. Tente novamente. Erro: " + e.message });
+          setDebug("ERRO: " + e.message);
+          setResult({ erro: "Não foi possível gerar." });
         }
         setLoading(false);
       };
 
-      const copiar = (txt, i) => {
+      const copiar = function(txt, i) {
         navigator.clipboard.writeText(txt);
         setCopiado(i);
-        setTimeout(() => setCopiado(null), 1500);
+        setTimeout(function() { setCopiado(null); }, 1500);
       };
 
       return (
@@ -177,12 +201,14 @@ setResult(parsed);
           <div>
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Tipo de microcópia</label>
             <div className="flex flex-wrap gap-2">
-              {tipos.map(t => (
-                <button key={t} onClick={() => setTipo(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${tipo === t ? "bg-blue-500 text-white border-blue-500" : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"}`}>
-                  {t}
-                </button>
-              ))}
+              {tipos.map(function(t) {
+                return (
+                  <button key={t} onClick={function() { setTipo(t); }}
+                    className={"px-3 py-1.5 rounded-full text-xs font-medium border transition-colors " + (tipo === t ? "bg-blue-500 text-white border-blue-500" : "bg-white text-gray-600 border-gray-200 hover:border-blue-300")}>
+                    {t}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div>
@@ -192,31 +218,38 @@ setResult(parsed);
               rows={4}
               placeholder="Ex: Botão de envio de formulário de cadastro em app de finanças pessoais para jovens adultos."
               value={context}
-              onChange={e => setContext(e.target.value)}
+              onChange={function(e) { setContext(e.target.value); }}
             />
           </div>
           <button onClick={gerar} disabled={loading || !context.trim()}
             className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors">
             {loading ? "Gerando..." : "Gerar microcópias"}
           </button>
-          {result && !result.erro && (
+          {debug ? (
+            <div className="p-3 bg-gray-900 rounded-lg text-xs text-green-400 overflow-auto max-h-40">
+              <strong>Debug:</strong> {debug}
+            </div>
+          ) : null}
+          {result && !result.erro ? (
             <div className="space-y-3">
-              {result.dica && (
+              {result.dica ? (
                 <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-sm text-amber-700">💡 {result.dica}</div>
-              )}
+              ) : null}
               <div className="space-y-2">
-                {result.opcoes?.map((op, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-lg">
-                    <span className="text-sm text-gray-700">{op}</span>
-                    <button onClick={() => copiar(op, i)} className="ml-3 text-xs text-blue-400 hover:text-blue-600 font-medium shrink-0">
-                      {copiado === i ? "✓ Copiado" : "Copiar"}
-                    </button>
-                  </div>
-                ))}
+                {result.opcoes && result.opcoes.map(function(op, i) {
+                  return (
+                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                      <span className="text-sm text-gray-700">{op}</span>
+                      <button onClick={function() { copiar(op, i); }} className="ml-3 text-xs text-blue-400 hover:text-blue-600 font-medium shrink-0">
+                        {copiado === i ? "✓ Copiado" : "Copiar"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          )}
-          {result?.erro && <p className="text-sm text-red-500">{result.erro}</p>}
+          ) : null}
+          {result && result.erro ? <p className="text-sm text-red-500">{result.erro}</p> : null}
         </div>
       );
     }
@@ -231,18 +264,20 @@ setResult(parsed);
               <p className="text-sm text-gray-500 mt-1">Crie e revise textos de interface com qualidade profissional.</p>
             </div>
             <div className="flex border-b border-gray-200 mb-6">
-              {tabs.map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-                  {tab}
-                </button>
-              ))}
+              {tabs.map(function(tab) {
+                return (
+                  <button key={tab} onClick={function() { setActiveTab(tab); }}
+                    className={"px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px " + (activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700")}>
+                    {tab}
+                  </button>
+                );
+              })}
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              {activeTab === "Sobre" && sobre}
-              {activeTab === "Diretrizes" && diretrizes}
-              {activeTab === "Revisão" && <RevisaoTab />}
-              {activeTab === "Criação" && <CriacaoTab />}
+              {activeTab === "Sobre" ? sobre : null}
+              {activeTab === "Diretrizes" ? diretrizes : null}
+              {activeTab === "Revisão" ? <RevisaoTab /> : null}
+              {activeTab === "Criação" ? <CriacaoTab /> : null}
             </div>
             <p className="text-center text-xs text-gray-400 mt-4">Powered by Claude · UX Writing em português</p>
           </div>
