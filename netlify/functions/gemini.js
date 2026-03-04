@@ -6,6 +6,10 @@ exports.handler = async function(event) {
   try {
     const { system, message } = JSON.parse(event.body);
     const apiKey = process.env.GEMINI_API_KEY;
+
+    console.log("API KEY exists:", !!apiKey);
+    console.log("API KEY length:", apiKey ? apiKey.length : 0);
+
     const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
 
     const response = await fetch(url, {
@@ -19,7 +23,12 @@ exports.handler = async function(event) {
     });
 
     const data = await response.json();
-    const text = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : "{}";
+    console.log("GEMINI RESPONSE STATUS:", response.status);
+    console.log("GEMINI RESPONSE:", JSON.stringify(data));
+
+    const text = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]
+      ? data.candidates[0].content.parts[0].text
+      : "{}";
 
     return {
       statusCode: 200,
@@ -27,9 +36,10 @@ exports.handler = async function(event) {
         "Access-Control-Allow-Origin": "*",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ text: text }),
+      body: JSON.stringify({ text: text, debug: data }),
     };
   } catch(err) {
+    console.log("ERRO:", err.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
