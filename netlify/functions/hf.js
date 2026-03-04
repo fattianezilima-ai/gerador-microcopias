@@ -7,10 +7,8 @@ exports.handler = async function(event) {
     const { system, message } = JSON.parse(event.body);
     const apiKey = process.env.HF_API_KEY;
 
-    const prompt = system + "\n\n" + message;
-
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+      "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2/v1/chat/completions",
       {
         method: "POST",
         headers: {
@@ -18,12 +16,13 @@ exports.handler = async function(event) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          inputs: "<s>[INST] " + prompt + " [/INST]",
-          parameters: {
-            max_new_tokens: 800,
-            temperature: 0.7,
-            return_full_text: false,
-          },
+          model: "mistralai/Mistral-7B-Instruct-v0.2",
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: message }
+          ],
+          max_tokens: 800,
+          temperature: 0.7,
         }),
       }
     );
@@ -31,8 +30,8 @@ exports.handler = async function(event) {
     const data = await response.json();
     console.log("HF RESPONSE:", JSON.stringify(data));
 
-    const text = Array.isArray(data) && data[0] && data[0].generated_text
-      ? data[0].generated_text
+    const text = data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content
       : "{}";
 
     return {
