@@ -14,7 +14,7 @@
   <script type="text/babel">
     const { useState } = React;
     const API = "/.netlify/functions/hf";
-    const tabs = ["Sobre", "Diretrizes da Marca", "Revisão", "Criação"]; // v2
+    const tabs = ["Sobre", "Diretrizes da Marca", "Revisão", "Criação"];
 
     const sobre = (
       <div className="space-y-4">
@@ -55,10 +55,10 @@
           <p className="text-sm text-gray-500">Cole aqui as diretrizes de tom de voz, vocabulário e estilo da sua marca. Elas serão aplicadas automaticamente nas abas Revisão e Criação.</p>
           <div className="space-y-3">
             {[
-              { label: "🎙 Tom de voz", key: "tom", placeholder: "Ex: Tom informal, próximo e empático. Evite formalidades excessivas..." },
-              { label: "🚫 Vocabulário proibido", key: "vocabulario", placeholder: "Ex: Não usar: 'clique aqui', 'usuário', 'sistema', palavras em inglês..." },
+              { label: "🎙 Tom de voz", key: "tom", placeholder: "Ex: Tom informal, próximo e empático..." },
+              { label: "🚫 Vocabulário proibido", key: "vocabulario", placeholder: "Ex: Não usar: 'clique aqui', 'usuário'..." },
               { label: "✍️ Estilo de escrita", key: "estilo", placeholder: "Ex: Frases curtas, voz ativa, máximo 5 palavras por botão..." },
-              { label: "🏷 Identidade da marca", key: "identidade", placeholder: "Ex: Marca jovem e inovadora, voltada para universitários brasileiros..." },
+              { label: "🏷 Identidade da marca", key: "identidade", placeholder: "Ex: Marca jovem voltada para universitários brasileiros..." },
             ].map(function(campo) {
               return (
                 <div key={campo.key}>
@@ -69,9 +69,10 @@
                     placeholder={campo.placeholder}
                     value={diretrizes[campo.key] || ""}
                     onChange={function(e) {
+                      var val = e.target.value;
                       setDiretrizes(function(prev) {
                         var next = Object.assign({}, prev);
-                        next[campo.key] = e.target.value;
+                        next[campo.key] = val;
                         return next;
                       });
                     }}
@@ -80,8 +81,7 @@
               );
             })}
           </div>
-          <button onClick={salvar}
-            className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+          <button onClick={salvar} className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
             {salvo ? "✓ Diretrizes salvas!" : "Salvar diretrizes"}
           </button>
           {Object.values(diretrizes).some(function(v) { return v && v.trim(); }) && (
@@ -100,7 +100,7 @@
       if (diretrizes.vocabulario && diretrizes.vocabulario.trim()) partes.push("VOCABULÁRIO PROIBIDO: " + diretrizes.vocabulario);
       if (diretrizes.estilo && diretrizes.estilo.trim()) partes.push("ESTILO DE ESCRITA: " + diretrizes.estilo);
       if (diretrizes.identidade && diretrizes.identidade.trim()) partes.push("IDENTIDADE DA MARCA: " + diretrizes.identidade);
-      if (partes.length > 0) base += "\n\nDIRETRIZES DA MARCA QUE DEVEM SER SEGUIDAS:\n" + partes.join("\n\n");
+      if (partes.length > 0) base += "\n\nDIRETRIZES DA MARCA:\n" + partes.join("\n\n");
       return base;
     }
 
@@ -122,12 +122,10 @@
           });
           const data = await res.json();
           const raw = (data.text || "{}").replace(/```json|```/g, "").trim();
-          console.log("GEMINI REVISAO:", raw);
           const parsed = JSON.parse(raw);
           setResult(parsed);
         } catch(e) {
-          console.log("ERRO REVISAO:", e.message);
-          setResult({ erro: "Erro: " + e.message });
+          setResult({ erro: "Não foi possível processar. Tente novamente." });
         }
         setLoading(false);
       };
@@ -296,7 +294,7 @@
               {activeTab === "Revisão" ? <RevisaoTab diretrizes={diretrizes} /> : null}
               {activeTab === "Criação" ? <CriacaoTab diretrizes={diretrizes} /> : null}
             </div>
-            <p className="text-center text-xs text-gray-400 mt-4">Powered by Gemini · UX Writing em português</p>
+            <p className="text-center text-xs text-gray-400 mt-4">Powered by Hugging Face · UX Writing em português</p>
           </div>
         </div>
       );
